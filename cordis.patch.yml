@@ -1,0 +1,3 @@
+- insert:
+    - id: narration-policy
+      name: '@local/dsh-narration-policy'
