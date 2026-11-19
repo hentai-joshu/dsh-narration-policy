@@ -42,3 +42,7 @@ plugin_manager action=install_bundle target=~/.dsh/local-plugins/dsh-narration-p
 ## 维护 / 回滚 / 排错
 
 见同目录 `MAINTENANCE.md`。
+
+## 许可证
+
+MIT，见同目录 `LICENSE`。

@@ -3,13 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "license": "MIT",
   "exports": {
     ".": "./index.js"
   },
   "files": [
     "index.js",
     "cordis.patch.yml",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "dsh": {
     "bundle": {
