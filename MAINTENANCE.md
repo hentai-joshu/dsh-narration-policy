@@ -18,7 +18,7 @@
 
 1. 改 `index.js` 里的 `NARRATION_TEXT`（只改文字，逻辑别动）。
 2. 重装使其生效：
-   `plugin_manager action=install_bundle target=/Users/maliyang/.dsh/local-plugins/dsh-narration-policy`
+   `plugin_manager action=install_bundle target=~/.dsh/local-plugins/dsh-narration-policy`
    （host 插件热加载，通常无需重启；不放心就重启 DSH。）
 3. **新建会话**验证，发：「把系统提示词里『过程汇报（Preamble）』那一节原样贴出来」。
 4. `git commit` 记录这次改动。
@@ -32,7 +32,7 @@
 ## 验证清单（迁完/改完都跑这 4 项）
 
 1. `plugin_manager list_plugins` → `include:narration-policy` 为 `enabled:true / fiberPhase:active`。
-2. `~/.dsh/profiles/desktop/package.json` 依赖行 = `"@local/dsh-narration-policy": "link:/Users/maliyang/.dsh/local-plugins/dsh-narration-policy"`，且 `dsh.profile.bundles` 里有该条目。
+2. `~/.dsh/profiles/desktop/package.json` 依赖行 = `"@local/dsh-narration-policy": "link:~/.dsh/local-plugins/dsh-narration-policy"`，且 `dsh.profile.bundles` 里有该条目。
 3. `~/.dsh/profiles/desktop/node_modules/@local/dsh-narration-policy` 软链 → `../../../../local-plugins/dsh-narration-policy`。
 4. 新建会话 / 子代理自检能贴出「## 过程汇报（Preamble）」小节。
 

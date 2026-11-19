@@ -23,7 +23,7 @@ profile 级：装进 `desktop`（或当前 profile）后，**所有新会话**�
 用 DSH 的插件管理器安装本目录（绝对路径）：
 
 ```
-plugin_manager action=install_bundle target=/Users/maliyang/.dsh/local-plugins/dsh-narration-policy
+plugin_manager action=install_bundle target=~/.dsh/local-plugins/dsh-narration-policy
 ```
 
 或在 Desktop 的 **Plugins → Add plugin** 选择本目录。装完**新建会话**验证（已有会话保持它启动时的插件版本）。
