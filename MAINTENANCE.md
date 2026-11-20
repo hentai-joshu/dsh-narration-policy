@@ -4,50 +4,55 @@
 
 ## 它是什么
 
-给 DeepSeek Harness 全局**追加**一段「过程汇报（Preamble）」系统提示词：让 agent 边干边用一两句话同步「在做什么 / 刚做完什么 / 遇到什么问题、打算怎么解决」，而不是只在开头计划和结尾总结。只注册一段文本，零运行时依赖、无 I/O。
+给 DeepSeek Harness 全局加两层「过程汇报」约束，文案自带、不依赖 `AGENTS.md`：
+
+1. **被动层**：一段追加的 system-prompt section（`narration-policy`，order `9000`）。
+2. **主动层**：`agent/pre-step` 监听。当这一步领到的 `messages` 里出现 `source.kind === 'compact-checkpoint'`（刚压缩过）时，往 `decision.messages` 末尾追加一条 user 角色复习提醒（`source.kind = 'narration-policy'`, `form: 'notice'`），只对顶层 agent 生效。
+
+为什么是压缩后提醒：系统提示那段是常量，会话越长占比越小；而**压缩**正是早期「先说明再调工具」示范被折进摘要的时刻。v1.1 曾做「每步纠偏」，实测过于频繁，v1.2 起改为压缩后一次。
 
 ## 目录结构
 
-- `index.js` —— 全部逻辑 + 文案常量 `NARRATION_TEXT`
-- `package.json` —— `name: @local/dsh-narration-policy`, `version: 1.0.0`
+- `index.js` —— 全部逻辑 + 文案常量 `NARRATION_TEXT` / `REVIEW_TEXT` + `REVIEW_ENABLED` / `COMPACT_CHECKPOINT_KIND`
+- `package.json` —— `name: @local/dsh-narration-policy`, `version: 1.2.0`
 - `cordis.patch.yml` —— 把插件挂到 profile loader 的一行
 - `README.md` —— 给使用者看的概述
 - `MAINTENANCE.md` —— 本文件（维护/回滚/排错）
 
 ## 改文案（最常做的操作）
 
-1. 改 `index.js` 里的 `NARRATION_TEXT`（只改文字，逻辑别动）。
-2. 重装使其生效：
+1. 改 `index.js` 的 `NARRATION_TEXT`（被动）或 `REVIEW_TEXT`（压缩后提醒），逻辑别动。
+2. 重装：
    `plugin_manager action=install_bundle target=~/.dsh/local-plugins/dsh-narration-policy`
-   （host 插件热加载，通常无需重启；不放心就重启 DSH。）
-3. **新建会话**验证，发：「把系统提示词里『过程汇报（Preamble）』那一节原样贴出来」。
-4. `git commit` 记录这次改动。
+3. 验证被动层：读会话日志 `~/.dsh/sessions/<cwd>/session-*/session.v4.jsonl.zstd` 最近的 `system/message` 事件，含新文案即生效。
+4. `git commit`，必要时 `git tag v1.2.x && git push`。
 
 ## 安装 / 卸载
 
-- 安装：见 `README.md`（用插件管理器指向本目录绝对路径）。
-- 卸载：`plugin_manager action=remove_bundle target=@local/dsh-narration-policy`；
-  或手动删 `~/.dsh/profiles/desktop/package.json` 的 `dsh.profile.bundles` 条目 + 删 `node_modules/@local/dsh-narration-policy` 软链。
+- 安装：见 `README.md`。
+- 卸载：`plugin_manager action=remove_bundle target=@local/dsh-narration-policy`，再从 `~/.dsh/profiles/desktop/package.json` 的 `dsh.profile.bundles` 去掉条目。
 
-## 验证清单（迁完/改完都跑这 4 项）
+## 验证清单
 
-1. `plugin_manager list_plugins` → `include:narration-policy` 为 `enabled:true / fiberPhase:active`。
-2. `~/.dsh/profiles/desktop/package.json` 依赖行 = `"@local/dsh-narration-policy": "link:~/.dsh/local-plugins/dsh-narration-policy"`，且 `dsh.profile.bundles` 里有该条目。
-3. `~/.dsh/profiles/desktop/node_modules/@local/dsh-narration-policy` 软链 → `../../../../local-plugins/dsh-narration-policy`。
-4. 新建会话 / 子代理自检能贴出「## 过程汇报（Preamble）」小节。
+1. `~/.dsh/profiles/desktop/package.json` 依赖行 = `"@local/dsh-narration-policy": "link:/Users/maliyang/.dsh/local-plugins/dsh-narration-policy"`，且 `dsh.profile.bundles` 有该条目。
+2. `plugin_manager install_bundle` 返回 `application: "applied"` 且 `version: 1.2.0`。
+3. 被动层：会话日志 `system/message` 含 `## 过程汇报（Preamble）` 与「没有就是不合格」。
+4. 主动层：单测脚本模拟 `agent/pre-step`（假 ctx + 假 decision）覆盖 5 种情况——有检查点→追加；无检查点/空消息/reject/子代理/abort→原样返回。
 
 ## 回滚
 
-- 提示词层：移除该 bundle 即恢复「无此段」。
-- 渲染层：把 `~/.dsh/profiles/desktop/cordis.patch.yml` 里 `ui-chat.foldedReplies` 改回 `all` 或删掉该行 = 中间文字不再收起。
+- 关主动层：`REVIEW_ENABLED = false`，重装。
+- 整体：移除 bundle，恢复「无此段」。
+- 想回到「每步纠偏」：在 git 历史里找 v1.1.0 的 `index.js`。
 
 ## 排错 / 坑
 
-- **bundles 被清空**：插件管理器重写 profile `package.json` 时有把 `dsh.profile.bundles` 条目清掉的先例。装/卸别的插件后，`grep @local/dsh-narration-policy ~/.dsh/profiles/desktop/package.json` 确认条目还在；没了就用 `install_bundle` 重装。
-- **别再挪回工作区**：工作区 `default-workspace` 可能被清理/迁移/重置，软链会断；本目录在 `~/.dsh` 用户数据区，稳定。
-- **升级 DSH 后**：只用稳定的 `ctx.systemPrompt.section()` 且零依赖，一般无需改；升级后新开会话自检一次即可。
-- **两层别混**：会说 = 本插件（提示词层）；会收 = 设置里「收起后显示的回复」`foldedReplies = final`（渲染层）。二者独立。
+- **bundles 被清空**：插件管理器重写 profile `package.json` 时偶有把 `bundles` 条目清掉的先例；装/卸别的插件后 `grep @local/dsh-narration-policy ~/.dsh/profiles/desktop/package.json` 确认还在。
+- **别再挪回工作区**：工作区可能被清理/迁移，软链会断；`~/.dsh` 用户数据区才稳。
+- **主动层没触发**：只有 DSH 自身压缩（`dsh-compaction-basic`，dsh-base 自带）跑过才会有检查点；`agent/pre-step` payload 必须带 `agent.session`。若 DSH 升级改了 `source.kind` 常量，改 `COMPACT_CHECKPOINT_KIND`。
+- **升级 DSH 后**：只用了 `ctx.systemPrompt.section()` 与 `ctx.on('agent/pre-step')` 两个稳定扩展点；改名时 `index.js` 只 warn 不崩，被动层仍在。
+- **提醒显示形态**：`source.form = 'notice'`；前端目前不按 `source` 区分渲染，会显示成一条普通 user 消息。压缩后只出现一次，可接受；若嫌碍眼，可在前端按 `source.kind` 过滤。
 
 ## 版本管理
 
-本目录是一个独立 git 仓库，任何改动请 `git add -A && git commit -m "..."`，便于追溯与回滚。
+独立 git 仓库，改动请 `git add -A && git commit`。远端：`github.com/hentai-joshu/dsh-narration-policy`。
