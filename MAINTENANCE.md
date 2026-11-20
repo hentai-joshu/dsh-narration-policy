@@ -14,7 +14,7 @@
 ## 目录结构
 
 - `index.js` —— 全部逻辑 + 文案常量 `NARRATION_TEXT` / `REVIEW_TEXT` + `REVIEW_ENABLED` / `COMPACT_CHECKPOINT_KIND`
-- `package.json` —— `name: @local/dsh-narration-policy`, `version: 1.2.0`
+- `package.json` —— `name: @local/dsh-narration-policy`, `version: 1.2.1`
 - `cordis.patch.yml` —— 把插件挂到 profile loader 的一行
 - `README.md` —— 给使用者看的概述
 - `MAINTENANCE.md` —— 本文件（维护/回滚/排错）
@@ -35,7 +35,7 @@
 ## 验证清单
 
 1. `~/.dsh/profiles/desktop/package.json` 依赖行 = `"@local/dsh-narration-policy": "link:/Users/maliyang/.dsh/local-plugins/dsh-narration-policy"`，且 `dsh.profile.bundles` 有该条目。
-2. `plugin_manager install_bundle` 返回 `application: "applied"` 且 `version: 1.2.0`。
+2. `plugin_manager install_bundle` 返回 `application: "applied"` 且 `version: 1.2.1`。
 3. 被动层：会话日志 `system/message` 含 `## 过程汇报（Preamble）` 与「没有就是不合格」。
 4. 主动层：单测脚本模拟 `agent/pre-step`（假 ctx + 假 decision）覆盖 5 种情况——有检查点→追加；无检查点/空消息/reject/子代理/abort→原样返回。
 
