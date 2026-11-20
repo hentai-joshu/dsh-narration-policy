@@ -4,7 +4,7 @@
 
 ## 它做什么 / 不做什么
 
-- 只**追加**一段 system-prompt section（`narration-policy`，order `5000`）。
+- 只**追加**一段 system-prompt section（`narration-policy`，order `9000`）。
 - 不覆盖、不替换任何现有 persona / 工具说明 / 环境段。
 - 不做文件、网络、定时器、进程操作；唯一副作用是注册一段文本。
 - 零运行时依赖；只用稳定的 `ctx.systemPrompt.section()` API。
@@ -27,6 +27,17 @@ plugin_manager action=install_bundle target=~/.dsh/local-plugins/dsh-narration-p
 ```
 
 或在 Desktop 的 **Plugins → Add plugin** 选择本目录。装完**新建会话**验证（已有会话保持它启动时的插件版本）。
+
+## 更新
+
+本插件从 GitHub 安装（非 npm registry），目前**没有“发现新版本”的自动提示**；更新需手动：
+
+1. 拉取最新代码：`git -C ~/.dsh/local-plugins/dsh-narration-policy pull`（或重新 clone 覆盖）；
+2. 在 **Plugins** 里重装/重新添加该 bundle，或 `plugin_manager action=install_bundle target=~/.dsh/local-plugins/dsh-narration-policy`；
+3. **完全退出并重启 DSH**（system-prompt 在启动时装配，刷新页面不够）；
+4. 新建会话验证。
+
+版本见仓库 tag 与 `package.json` 的 `version`。若将来发布到 npm 公共包，才会支持 registry 的“版本更新”式提示（当前未发布）。
 
 ## 卸载
 
