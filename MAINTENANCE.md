@@ -16,8 +16,6 @@
 
 历史：v1.1 每步纠偏、v1.2 压缩后插一条 user 提醒，均已废弃。
 
-v1.3.1：复习规则的触发标记补上外部代理压缩的块头 `[Compressed conversation section]`。原先只认 DSH 原生 checkpoint / `<compacted-summary>`，而 bili 等代理层压缩时 DSH 日志里根本没有 checkpoint 消息（实测 `session.v4.jsonl.zstd` 里该字符串 0 次），规则等于从未触发。
-
 ## 目录结构
 
 - `index.js` —— 逻辑 + `NARRATION_TEXT`

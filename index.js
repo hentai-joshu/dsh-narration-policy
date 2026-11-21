@@ -37,8 +37,7 @@ export const NARRATION_TEXT = `## 过程汇报（Preamble）
 - 有多个方案时给出推荐项和理由，而不是只罗列让人自己选。
 - 不确定的地方直说不确定，不要用模糊表述掩盖。
 ### 压缩后重新对一遍
-- 对话里出现下面任何一种标记，就说明前面一段历史刚被压成摘要、早期「先说一句再调工具」的示范已经不在上下文里了：‘This is an automatically generated checkpoint’、‘<compacted-summary>’、以「[Compressed conversation section]」开头的消息块（有的环境用外部代理压缩，日志里不会有 checkpoint 消息，只有这种块）。
-- 看到这些标记，立刻把上面几条重新执行一遍：下一条消息先写一两句说明，再调工具。`
+- 如果对话里出现「This is an automatically generated checkpoint」或 <compacted-summary>，说明前面一段历史刚被压缩成摘要、早期「先说一句再调工具」的示范已经不在上下文里了。看到它就立刻把上面几条重新执行一遍：下一条消息先写一两句说明，再调工具。`
 
 /**
  * Register the narration section. This is the plugin's only effect.
