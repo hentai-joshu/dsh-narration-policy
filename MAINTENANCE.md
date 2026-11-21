@@ -1,58 +1,37 @@
-# 维护手册（MAINTENANCE）
+# 维护说明（v1.5.0）
 
-> 位置：`~/.dsh/local-plugins/dsh-narration-policy`（独立于工作区，profile 通过软链引用，清理工作区不会断）。
+## 结构
 
-## 它是什么
+- `index.js`：唯一实现。`inject = ['systemPrompt']`；导出 `name = 'narration-policy'`。
+- `apply(ctx)` 只做三件事：
+  1. `ctx.effect(() => ctx.systemPrompt.section({ name: 'narration-policy', order: 9000, text: NARRATION_TEXT }))`
+  2. `ctx.on('session/event', (session, event) => …)` 维护 `WeakMap<Session, { silentSteps }>`
+  3. `ctx.on('tools/post-execute', …)`（默认）或 `ctx.on('tools/pre-execute', …)`（deny 模式）
 
-给 DeepSeek Harness 全局加一段 system-prompt section，要求 agent 边干边说。**只有这一层，不注入任何消息。**
+## 关键不变量（改代码时别破坏）
 
-- section 名 `narration-policy`，order `9000`。
-- 文案见 `index.js` 的 `NARRATION_TEXT`，四小节：过程说明 / 该说和不该说 / 回答本身 / 压缩后重新对一遍。
-- 「压缩后重新对一遍」是一条**条件规则**：DSH 压缩时会写一条以 `This is an automatically generated checkpoint…` 开头的摘要消息，模型看到它就自行重新执行上述要求。不需要插件做任何注入。
+1. **系统提示文案逐字节恒定**：不能含时间、轮数、sessionId、随机数、`{{变量}}`。否则前缀缓存整段失效。
+2. **提醒必须带 `source`**：`{ kind: 'narration-policy', form: 'notice', summary: <非空字符串> }`。带标记才不会渲染成用户气泡；`form: 'notice'` 且 `summary` 非空才不会落到 `OpaqueBody`。
+3. **不要用 `deny` 做默认**：框架会把 deny 渲染成 `Error: …`（`dsh-tools/lib/types/pipeline.js`），用户明确不想看到。
+4. **计数按思考块**：有 `reasoning` 且无非空 `text` 就 +1，不看有没有 `tool-call`（用户 m01274 要求按思考计数，m01845 明确「不用看工具调用」）。
+5. **频率三重闸门**：`reasoningSteps`（连续几步沉默）× `maxPerTurn`（每回合上限）× `minTurnsBetweenReminders`（跨回合最小间隔，`turnIndex - lastReminderTurnIndex` 判定）。提醒会落库成 `user/message`，长会话里累积占上下文，所以第三道闸门是控制长期污染的关键（v1.5.2）。
 
-## 为什么不注入消息
+7. **v1.5.7**：计数条件从 `hasReasoning && hasToolCall` 改为只看 `hasReasoning`（修掉「有工具调用但没思考块」或「有思考没工具」时的漏计/误计）；单测 15/15。
+8. **v1.5.8**：新增 `agent/pre-step` 触发通道（覆盖纯思考、不调工具的步），提醒逻辑抽成 `takeReminder(counter, config)` 供 pre-step / post-execute / pre-execute 共用，保证不重复；pre-step 里先做回合对账（`payload.turn !== counter.turn` 就重置计数器）。单测 19/19。
+9. **v1.5.6**：`maxPerTurn: 0` = 不封顶（每 `reasoningSteps` 步沉默提醒一次，长回合持续纠偏）；不影响默认值 1。
+5. **同版本号重装不重载**：改完必须升 `version` 再 `remove_bundle` → `install_bundle`。
 
-`agent/pre-step` 只能追加 `UserMessage`（会以用户气泡显示）；`agent/request` 已废弃且只能改模型参数。两条都不是合适的载体。纯提示 + 条件规则零噪音，也就没有「用户没说过却冒出一条消息」的问题。
+## 本地验证
 
-历史：v1.1 每步纠偏、v1.2 压缩后插一条 user 提醒，均已废弃。
+```bash
+node /tmp/exp/test-v15.mjs        # 25 个用例：section/计数/阈值/子代理/notice 形状/deny 模式/配置热读
+node --check index.js
+```
 
-## 目录结构
-
-- `index.js` —— 逻辑 + `NARRATION_TEXT`
-- `package.json` —— `name: @local/dsh-narration-policy`, `version: 1.3.0`
-- `cordis.patch.yml` —— 把插件挂到 profile loader
-- `README.md` / `MAINTENANCE.md` / `LICENSE`
-
-## 改文案
-
-1. 改 `index.js` 的 `NARRATION_TEXT`（逻辑别动）。
-2. 重装：`plugin_manager action=install_bundle target=~/.dsh/local-plugins/dsh-narration-policy`
-3. 验证：读会话日志 `~/.dsh/sessions/<cwd>/session-*/session.v4.jsonl.zstd` 最新的 `system/message` 事件，含新文案即生效。
-4. `git commit`，必要时 `git tag v1.3.x && git push`。
-
-## 安装 / 卸载
-
-- 安装：见 `README.md`。
-- 卸载：`plugin_manager action=remove_bundle target=@local/dsh-narration-policy`，再去掉 profile `package.json` 的 `dsh.profile.bundles` 条目。
-
-## 验证清单
-
-1. `~/.dsh/profiles/desktop/package.json` 依赖行 = `"@local/dsh-narration-policy": "link:/Users/maliyang/.dsh/local-plugins/dsh-narration-policy"`，且 `dsh.profile.bundles` 有该条目。
-2. `plugin_manager install_bundle` 返回 `version: 1.3.0`、`application: "applied"`。
-3. 会话日志 `system/message` 含 `### 压缩后重新对一遍`。
-4. 确认没有 `source.kind = 'narration-policy'` 的 user 消息（本版应完全不再产生）。
+真机验证：装好后连续 3 步只思考不写字（每步夹一个工具调用），查看会话日志里是否出现 `source.kind = 'narration-policy'` 的 `user/message`，且**没有**任何 `Error:`。
 
 ## 回滚
 
-- 回 v1.2（压缩后插一条 user 提醒）：`git checkout v1.2.1 -- index.js package.json` 后重装。
-- 整体移除：去掉 bundle。
+`~/.dsh/narration-policy.json` 写 `{ "reminder": false }` 即只保留静态提示（零额外注入）；或 `{ "mode": "deny" }` 回到强约束；彻底回退用 `plugin_manager remove_bundle`。
 
-## 排错 / 坑
-
-- **bundles 被清空**：插件管理器重写 profile `package.json` 时偶有清掉 `bundles` 条目的先例；装/卸别的插件后 `grep @local/dsh-narration-policy ~/.dsh/profiles/desktop/package.json` 确认还在。
-- **别再挪回工作区**：工作区可能被清理/迁移，软链会断；`~/.dsh` 用户数据区才稳。
-- **升级 DSH 后**：只用了 `ctx.systemPrompt.section()` 一个稳定接口；若压缩检查点的开头文字改了（`This is an automatically generated checkpoint`），同步更新 `NARRATION_TEXT` 里引用的标记。
-
-## 版本管理
-
-独立 git 仓库，改动请 `git add -A && git commit`。远端：`github.com/hentai-joshu/dsh-narration-policy`。
+6. **v1.5.5（独立压测反馈修复）**：①`turnsGateOpen` 同回合直接放行，`maxPerTurn>1` 不再是死配置；②`getConfig` 校验 `mode` 只认 `context|deny`，拼错回落默认（否则两个监听都会提前 return，提醒静默失效）；③JSON 解析失败时也缓存 mtime，避免每次调用都 `statSync+readFileSync+parse`（10 万次从 17.7µs/次降到 2.2µs/次）；④数值字段统一用 `Number()` 归一，`"5"`/`2.7` 不再被静默丢弃。
