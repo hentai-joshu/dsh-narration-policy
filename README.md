@@ -17,7 +17,7 @@
 - **每条消息都要有人话**：调工具前先写一两句说明；长对话、压缩后、连续多步同样适用。
 - **该说和不该说**：同一步多个动作开头一句带过；阶段完成/换方向/卡住时补一句；不写空话、不攒到最后。
 - **回答本身**：结论先说；多方案给推荐项和理由；不确定直说。
-- **压缩后重新对一遍**：看到 `automatically generated checkpoint` / `<compacted-summary>` 就把上面几条重新执行。
+- **压缩后重新对一遍**：看到 `automatically generated checkpoint`、`<compacted-summary>`，或以 `[Compressed conversation section]` 开头的消息块（外部代理压缩的形态），就把上面几条重新执行。
 
 ## 它做什么 / 不做什么
 
