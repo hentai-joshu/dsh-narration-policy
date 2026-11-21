@@ -11,7 +11,6 @@
  * Design constraints:
  * - additive only: never replaces prompt sections or messages;
  * - no messages are ever appended; the only output is this prompt section;
- * - registered with `interpolate: false`: the text is a constant, never a template;
  * - must never break a session: registration failures are caught and warned;
  * - no runtime dependencies.
  */
@@ -51,7 +50,6 @@ export function apply(ctx) {
         name: 'narration-policy',
         order: 9000,
         text: NARRATION_TEXT,
-        interpolate: false,
       }),
       'narration-policy.section()',
     )
