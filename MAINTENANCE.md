@@ -16,10 +16,12 @@
 
 历史：v1.1 每步纠偏、v1.2 压缩后插一条 user 提醒，均已废弃。
 
+v1.3.1 起 section 以 `interpolate: false` 注册：文案按字面量渲染，里面的 `{{…}}` 不会被解析成提示变量（本插件文案本来也没有占位符，这是防线）。order 维持 `9000`——实测前移到 900 每步能多省约 1.5KB 的缓存未命中，一个长任务折合几分钱，不值得改公共行为。
+
 ## 目录结构
 
 - `index.js` —— 逻辑 + `NARRATION_TEXT`
-- `package.json` —— `name: @local/dsh-narration-policy`, `version: 1.3.0`
+- `package.json` —— `name: @local/dsh-narration-policy`, `version: 1.3.1`
 - `cordis.patch.yml` —— 把插件挂到 profile loader
 - `README.md` / `MAINTENANCE.md` / `LICENSE`
 
@@ -38,9 +40,10 @@
 ## 验证清单
 
 1. `~/.dsh/profiles/desktop/package.json` 依赖行 = `"@local/dsh-narration-policy": "link:/Users/maliyang/.dsh/local-plugins/dsh-narration-policy"`，且 `dsh.profile.bundles` 有该条目。
-2. `plugin_manager install_bundle` 返回 `version: 1.3.0`、`application: "applied"`。
+2. `plugin_manager install_bundle` 返回 `version: 1.3.1`、`application: "applied"`。
 3. 会话日志 `system/message` 含 `### 压缩后重新对一遍`。
 4. 确认没有 `source.kind = 'narration-policy'` 的 user 消息（本版应完全不再产生）。
+5. `index.js` 里 section 带 `interpolate: false`；`node -e` 用真实 `renderPrompt` 组装时该段逐字节出现在提示里（见 `~/.dsh/local-plugins/...`/实验脚本）。
 
 ## 回滚
 
